@@ -9,25 +9,19 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type analyzerPlugin struct{}
-
-func (analyzerPlugin) GetAnalyzers() []*analysis.Analyzer {
-	return []*analysis.Analyzer{
-		{
-			Name: "yamlquotes",
-			Doc:  "checks for unquoted strings in YAML files",
-			Run:  run,
-		},
-	}
+var Analyzer = &analysis.Analyzer{
+	Name: "yamlquotes",
+	Doc:  "checks for unquoted strings in YAML files",
+	Run:  run,
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	for _, file := range pass.OtherFiles {
-		if !strings.HasSuffix(file, ".yaml") && !strings.HasSuffix(file, ".yml") {
+	for _, filename := range pass.OtherFiles {
+		if !strings.HasSuffix(filename, ".yaml") && !strings.HasSuffix(filename, ".yml") {
 			continue
 		}
 
-		data, err := os.ReadFile(file)
+		data, err := os.ReadFile(filename)
 		if err != nil {
 			continue
 		}
@@ -39,7 +33,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		issues := checkNode(&rootNode)
 		for _, issue := range issues {
-			pass.Reportf(0, "YAML Quote Issue: %s in file %s", issue, file)
+			pass.Report(analysis.Diagnostic{
+				Pos:     0, // File start
+				Message: issue,
+			})
 		}
 	}
 	return nil, nil
@@ -69,5 +66,9 @@ func checkNode(node *yaml.Node) []string {
 	return issues
 }
 
-// Required export for golangci-lint plugin
-var AnalyzerPlugin analyzerPlugin
+// New provides the plugin entry point for golangci-lint.
+func New(conf any) ([]*analysis.Analyzer, error) {
+	fmt.Printf("My configuration (%[1]T): %#[1]v\n", conf)
+
+	return []*analysis.Analyzer{Analyzer}, nil
+}
